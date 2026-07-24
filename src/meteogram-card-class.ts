@@ -2449,7 +2449,7 @@ export class MeteogramCard extends LitElement {
     // Skip legends entirely in "core" display mode
     const numLegends = (this.displayMode === "core" || !this.showLegend) ? 0 : enabledLegends.length;
     const legendPositions =
-      this.displayMode === "core"
+      (this.displayMode === "core" || !this.showLegend)
         ? []
         : enabledLegends.map((_: LegendInfo, i: number) => {
             const slotWidth = this._chartWidth / numLegends;
