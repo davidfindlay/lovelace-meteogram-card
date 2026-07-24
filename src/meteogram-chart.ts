@@ -1121,7 +1121,10 @@ export class MeteogramChart {
     }
 
     /**
-     * Draw wind band (barbs, grid, background, border)
+     * Draw wind direction barbs ("flags") in a thin row at the top of the plot,
+     * directly beneath the weather-icon bar. Barbs are placed at the SAME cadence
+     * as the weather icons (icon_frequency, clock-anchored). Wind SPEED is drawn
+     * separately as a line on the main plot (see drawWindSpeedLine).
      */
     public drawWindBand(
         svg: any,
@@ -1136,188 +1139,100 @@ export class MeteogramChart {
         windDirection: (number|null)[],
         windSpeedUnit: string
     ) {
-        // Wind band sits in the reserved strip at the TOP, directly below the icon bar
-        // (margin.top already reserves iconBand + windBandHeight above the plot).
         const windBandYOffset = margin.top - windBandHeight;
         const windBand = svg.append('g')
             .attr('transform', `translate(${margin.left},${windBandYOffset})`);
+        const barbRowY = windBandHeight / 2;
 
-        // Even hour grid lines
-        const twoHourIdx: number[] = [];
-        for (let i = 0; i < N; i++) {
-            if (time[i].getHours() % 2 === 0) twoHourIdx.push(i);
-        }
+        // Cadence matches the weather icons: icon_frequency (clock-anchored) when
+        // set, otherwise fall back to every 2 hours.
+        const freqRaw = this.card.iconFrequency;
+        const freq = (typeof freqRaw === "number" && freqRaw > 0) ? Math.round(freqRaw) : null;
+        const showBarb = (i: number): boolean => {
+            const t = time[i];
+            if (freq && t instanceof Date) return (t.getHours() % freq) === 0;
+            if (t instanceof Date) return (t.getHours() % 2) === 0;
+            return true;
+        };
 
-        windBand.selectAll(".wind-band-grid")
-            .data(twoHourIdx)
-            .enter()
-            .append("line")
-            .attr("class", "wind-band-grid")
-            .attr("x1", (i: number) => x(i))
-            .attr("x2", (i: number) => x(i))
-            .attr("y1", 0)
-            .attr("y2", windBandHeight)
-            .attr("stroke", "currentColor")
-            .attr("stroke-width", 1);
-
-        // Wind band border (outline)
-        windBand.append("rect")
-            .attr("class", "wind-band-outline")
-            .attr("x", 0)
-            .attr("y", 0)
-            .attr("width", this.card._chartWidth)
-            .attr("height", windBandHeight)
-            .attr("stroke", "currentColor")
-            .attr("stroke-width", 2)
-            .attr("fill", "none");
-
-        windBand.append("rect")
-            .attr("class", "wind-band-bg")
-            .attr("x", 0)
-            .attr("y", 0)
-            .attr("width", this.card._chartWidth)
-            .attr("height", windBandHeight);
-
-        // --- Wind-speed line graph across the strip ---
-        // Barbs sit in a thin row at the top; the speed line occupies the lower area.
-        const barbRowY = 12;
-        const spdVals = windSpeed.filter(
-            (v): v is number => typeof v === "number" && !isNaN(v)
-        );
-        if (spdVals.length) {
-            const maxSpd = Math.max(10, d3.max(spdVals) ?? 10);
-            const ySpd = d3.scaleLinear()
-                .domain([0, maxSpd])
-                .range([windBandHeight - 4, barbRowY + 10]);
-            const spdPts = d3.range(N).map((i: number) => ({
-                i,
-                v: (typeof windSpeed[i] === "number" && !isNaN(windSpeed[i] as number))
-                    ? (windSpeed[i] as number)
-                    : null,
-            }));
-            const spdLine = d3.line<{ i: number; v: number | null }>()
-                .defined((d) => d.v !== null)
-                .x((d) => x(d.i))
-                .y((d) => ySpd(d.v as number))
-                .curve(d3.curveMonotoneX);
-            windBand.append("path")
-                .datum(spdPts)
-                .attr("class", "wind-speed-line")
-                .attr("d", spdLine as any)
-                .attr("fill", "none")
-                .attr("stroke", "var(--meteogram-wind-speed-color, #26a69a)")
-                .attr("stroke-width", 2)
-                .attr("pointer-events", "none");
-            // Peak wind-speed label (top-left of the strip)
-            windBand.append("text")
-                .attr("class", "wind-speed-max-label")
-                .attr("x", 3)
-                .attr("y", barbRowY + 8)
-                .attr("font-size", "9px")
-                .attr("fill", "var(--meteogram-wind-speed-color, #26a69a)")
-                .text(`${Math.round(maxSpd)} ${windSpeedUnit}`);
-        }
-
-        // Day change lines in wind band
-        const dayChangeIdx = [];
-        for (let i = 1; i < N; i++) {
-            if (time[i].getDate() !== time[i - 1].getDate()) dayChangeIdx.push(i);
-        }
-        windBand.selectAll(".twentyfourh-line-wind")
-            .data(dayChangeIdx)
-            .enter()
-            .append("line")
-            .attr("class", "twentyfourh-line-wind")
-            .attr("x1", (i: number) => x(i))
-            .attr("x2", (i: number) => x(i))
-            .attr("y1", 0)
-            .attr("y2", windBandHeight);
-
-        // Detect where data transitions from hourly to 6-hourly
-        // Check intervals throughout the dataset
-        const intervals: number[] = [];
-        for (let i = 1; i < N; i++) {
-            const intervalHours = (time[i].getTime() - time[i-1].getTime()) / (1000 * 60 * 60);
-            intervals.push(intervalHours);
-        }
-        
-        // Find where transition happens (interval jumps from ~1h to 6h)
-        let transitionIdx = N; // Default: no transition
-        for (let i = 1; i < intervals.length; i++) {
-            if (intervals[i-1] < 3 && intervals[i] >= 4) {
-                transitionIdx = i;
-                break;
-            }
-        }
-        
-        // Build indices for wind barbs
-        const windBarbIndices: number[] = [];
-        
-        // For hourly section: use even hours, place barbs between them
-        const highResIndices: number[] = [];
-        for (let i = 0; i < Math.min(transitionIdx, N); i++) {
-            if (time[i].getHours() % 2 === 0) highResIndices.push(i);
-        }
-        
-        // For 6-hourly section: use all data points directly
-        const lowResIndices: number[] = [];
-        for (let i = transitionIdx; i < N; i++) {
-            lowResIndices.push(i);
-        }
-        
-        // Create wind length scale once for all barbs
-        const minBarbLen = width < 400 ? 18 : 23;
-        const maxBarbLen = width < 400 ? 30 : 38;
+        // Barb length scaled to wind speed
+        const minBarbLen = width < 400 ? 14 : 18;
+        const maxBarbLen = width < 400 ? 22 : 28;
         const windLenScale = d3.scaleLinear()
             .domain([0, Math.max(15, (d3.max(windSpeed.filter((v): v is number => typeof v === 'number' && !isNaN(v))) ?? 20))])
             .range([minBarbLen, maxBarbLen]);
-        
-        // Now place wind barbs — in a thin row along the TOP of the strip,
-        // above the wind-speed line (direction "flags").
-        const windBarbY = barbRowY;
 
-        // Draw high-resolution barbs (between even hours)
-        for (let idx = 0; idx < highResIndices.length - 1; idx++) {
-            const startIdx = highResIndices[idx];
-            const endIdx = highResIndices[idx + 1];
-            if (width < 400 && idx % 2 !== 0) continue;
-            const centerX = (x(startIdx) + x(endIdx)) / 2;
-            const dataIdx = Math.floor((startIdx + endIdx) / 2);
-            const speed = windSpeed[dataIdx];
-            const gust = windGust[dataIdx];
-            const dir = windDirection[dataIdx];
+        for (let i = 0; i < N; i++) {
+            if (!showBarb(i)) continue;
+            const speed = windSpeed[i];
+            const gust = windGust[i];
+            const dir = windDirection[i];
             if (typeof speed !== 'number' || typeof dir !== 'number' || isNaN(speed) || isNaN(dir)) continue;
-            
-            // Convert wind speeds to knots for proper wind barb calculation
             const speedInKnots = convertWindSpeed(speed, windSpeedUnit, "kt");
             const gustInKnots = typeof gust === 'number' && !isNaN(gust) ? convertWindSpeed(gust, windSpeedUnit, "kt") : null;
-            
             const barbLen = windLenScale(speed);
-            this.drawWindBarb(windBand, centerX, windBarbY, speedInKnots, gustInKnots, dir, barbLen, width < 400 ? 0.4 : 0.5);
+            this.drawWindBarb(windBand, x(i), barbRowY, speedInKnots, gustInKnots, dir, barbLen, width < 400 ? 0.6 : 0.7);
         }
-        
-        // Draw low-resolution barbs (every other point for 6-hourly data = 12-hour intervals)
-        for (let i = 0; i < lowResIndices.length; i++) {
-            const dataIdx = lowResIndices[i];
-            
-            // For 6-hourly data, show every other point (12-hour intervals)
-            // This is timezone-agnostic and adapts to when the data starts
-            if (i % 2 !== 0) continue;
-            
-            if (width < 400 && i % 4 !== 0) continue; // On narrow screens, show every 24 hours (every 4th 6-hourly point)
-            
-            const speed = windSpeed[dataIdx];
-            const gust = windGust[dataIdx];
-            const dir = windDirection[dataIdx];
-            
-            if (typeof speed !== 'number' || typeof dir !== 'number' || isNaN(speed) || isNaN(dir)) continue;
-            
-            // Convert wind speeds to knots for proper wind barb calculation
-            const speedInKnots = convertWindSpeed(speed, windSpeedUnit, "kt");
-            const gustInKnots = typeof gust === 'number' && !isNaN(gust) ? convertWindSpeed(gust, windSpeedUnit, "kt") : null;
-            
-            const barbLen = windLenScale(speed);
-            this.drawWindBarb(windBand, x(dataIdx), windBarbY, speedInKnots, gustInKnots, dir, barbLen, width < 400 ? 0.4 : 0.5);
+    }
+
+    /**
+     * Draw the wind-speed line on the main plot, with a right-side axis (a second
+     * y-axis alongside temperature), mirroring the pressure line.
+     */
+    public drawWindSpeedLine(
+        chart: any,
+        windSpeed: (number|null)[],
+        x: any,
+        yWind: any,
+        unit: string,
+        legendX?: number,
+        legendY?: number
+    ) {
+        const windLine = d3.line<number | null>()
+            .defined((d: number | null) => d !== null && typeof d === "number" && !isNaN(d))
+            .x((_: number | null, i: number) => x(i))
+            .y((d: number | null) => yWind(d as number))
+            .curve(d3.curveMonotoneX);
+
+        chart.append("path")
+            .datum(windSpeed)
+            .attr("class", "wind-speed-line")
+            .attr("d", windLine)
+            .attr("fill", "none")
+            .attr("stroke", "var(--meteogram-wind-speed-color, #26a69a)")
+            .attr("stroke-width", 1.8);
+
+        // Right-side wind axis
+        const dom = yWind.domain();
+        const step = Math.max(5, Math.ceil((dom[1] - dom[0]) / 4 / 5) * 5);
+        const ticks: number[] = [];
+        for (let v = 0; v <= dom[1] + 0.001; v += step) ticks.push(v);
+        chart.append("g")
+            .attr("class", "wind-axis")
+            .attr("transform", `translate(${this.card._chartWidth}, 0)`)
+            .attr("color", "var(--meteogram-wind-speed-color, #26a69a)")
+            .call(d3.axisRight(yWind)
+                .tickValues(ticks)
+                .tickFormat(d3.format('d') as any));
+
+        // Axis label (skip in focussed/core to save space)
+        if (!this.card.focussed && this.card.displayMode !== "core") {
+            chart.append("text")
+                .attr("class", "axis-label")
+                .attr("text-anchor", "middle")
+                .attr("fill", "var(--meteogram-wind-speed-color, #26a69a)")
+                .attr("transform", `translate(${this.card._chartWidth + this.card._margin.right - 20},${yWind.range()[0] / 2}) rotate(90)`)
+                .text(`Wind (${unit})`);
+        }
+
+        if (legendX !== undefined && legendY !== undefined) {
+            chart.append("text")
+                .attr("class", "legend legend-wind")
+                .attr("x", legendX)
+                .attr("y", legendY)
+                .attr("text-anchor", "start")
+                .attr("fill", "var(--meteogram-wind-speed-color, #26a69a)")
+                .text(`Wind (${unit})`);
         }
     }
 

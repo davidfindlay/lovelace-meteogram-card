@@ -1842,8 +1842,9 @@ export class MeteogramCard extends LitElement {
         // Determine if wind data is available
         const windAvailable = this.showWind && this._dataAvailability.wind;
 
-        // Set windBand based on wind availability (taller now to fit a wind-speed line)
-        const windBandHeight = windAvailable ? 62 : 0;
+        // Top strip now holds only the direction barbs (thin row); wind SPEED is
+        // drawn as a line with its own axis on the main plot.
+        const windBandHeight = windAvailable ? 26 : 0;
         const hourLabelBand = 30;
 
         // --- ADJUST: Remove this._chartHeight cap and use full height ---
@@ -2321,7 +2322,8 @@ export class MeteogramCard extends LitElement {
     } else if (this.focussed) {
       this._margin = {
         top: 10,
-        right: 14,
+        // Reserve room on the right for the wind-speed axis when wind is shown
+        right: windAvailable ? 34 : 14,
         bottom: hourLabelBand + 10,
         left: 32,
       };
@@ -2447,6 +2449,23 @@ export class MeteogramCard extends LitElement {
           Math.floor((pressureRange[0] - pressurePadding) / 100) * 100,
           Math.ceil((pressureRange[1] + pressurePadding) / 100) * 100,
         ])
+        .range([this._chartHeight, 0]);
+    }
+
+    // Wind-speed Y scale — secondary axis on the right of the main plot
+    let yWind;
+    const windLineUnit =
+      !this.entityId || this.entityId === "none"
+        ? this.getSystemWindSpeedUnit()
+        : data.units?.windSpeed || this.getSystemWindSpeedUnit();
+    if (windAvailable) {
+      const validWind = windSpeedConverted.filter(
+        (w): w is number => w !== null && typeof w === "number" && !isNaN(w)
+      );
+      const maxWind = Math.max(10, d3.max(validWind) ?? 10);
+      yWind = d3
+        .scaleLinear()
+        .domain([0, Math.ceil(maxWind / 5) * 5])
         .range([this._chartHeight, 0]);
     }
 
@@ -2665,6 +2684,17 @@ export class MeteogramCard extends LitElement {
         windGust, // Use raw gust speeds for barb calculation
         windDirection,
         rawWindUnit
+      );
+    }
+
+    // Draw wind-speed line on the main plot (secondary right axis)
+    if (windAvailable && yWind) {
+      this._chartRenderer.drawWindSpeedLine(
+        chart,
+        windSpeedConverted,
+        x,
+        yWind,
+        windLineUnit
       );
     }
 
