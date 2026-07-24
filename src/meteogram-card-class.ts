@@ -2322,10 +2322,13 @@ export class MeteogramCard extends LitElement {
       };
     }
     const margin = this._margin;
+    // Reserve a band above the plot for top-bar weather icons so they sit clear of the graph
+    const iconBand = (this.iconsTopBar && this.showWeatherIcons) ? 46 : 0;
+    margin.top += iconBand;
 
-    this._chartHeight = this.focussed
+    this._chartHeight = (this.focussed
       ? height - windBandHeight - hourLabelBand - 10
-      : height - windBandHeight - hourLabelBand - 50 - 10; // Extra space for legends in non-focussed mode
+      : height - windBandHeight - hourLabelBand - 50 - 10) - iconBand; // Extra space for legends in non-focussed mode
     // Cap the chart width to only what's needed for the data
     const maxHourSpacing = 90;
     const baseWidth = Math.min(width, Math.max(300, maxHourSpacing * (N - 1)));

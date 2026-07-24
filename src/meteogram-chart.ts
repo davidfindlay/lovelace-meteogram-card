@@ -36,7 +36,7 @@ export class MeteogramChart {
         const freqRaw = this.card.iconFrequency;
         const freq = (typeof freqRaw === "number" && freqRaw > 0) ? Math.round(freqRaw) : null;
         const topBar = !!this.card.iconsTopBar;
-        const topBarY = 2; // near the top edge of the plot area
+        const topBarY = -42; // in the reserved band above the plot, clear of the graph
         const showIcon = (i: number): boolean => {
             if (freq) {
                 const t = data && data.time ? data.time[i] : null;
