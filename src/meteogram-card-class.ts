@@ -172,6 +172,7 @@ export class MeteogramCard extends LitElement {
   private _margin = { top: 32, right: 48, bottom: 32, left: 48 };
   private _chartWidth = 0;
   private _chartHeight = 0;
+  private _windBandHeight = 0;
   private iconCache = new Map<string, string>();
   private iconBasePath =
     "https://raw.githubusercontent.com/metno/weathericons/refs/heads/main/weather/svg/";
@@ -1911,6 +1912,7 @@ export class MeteogramCard extends LitElement {
           windSpeed: sliceData(data.windSpeed),
           windGust: sliceData(data.windGust),
           windDirection: sliceData(data.windDirection),
+          precipitationProbability: sliceData(data.precipitationProbability || []),
           symbolCode: sliceData(data.symbolCode),
           pressure: sliceData(data.pressure),
           units: data.units, // Preserve units from original data
@@ -2240,6 +2242,7 @@ export class MeteogramCard extends LitElement {
       symbolCode,
       pressure,
     } = data;
+    const precipitationProbability = data.precipitationProbability || [];
 
     const N = time.length;
     const tempUnit = this.getSystemTemperatureUnit();
@@ -2340,7 +2343,10 @@ export class MeteogramCard extends LitElement {
     const margin = this._margin;
     // Reserve a band above the plot for top-bar weather icons so they sit clear of the graph
     const iconBand = (this.iconsTopBar && this.showWeatherIcons) ? 46 : 0;
-    margin.top += iconBand;
+    // Wind band now sits in a reserved strip at the TOP, directly beneath the icon bar
+    // (icons at the very top, wind line/flags below them, then the plot).
+    this._windBandHeight = windBandHeight;
+    margin.top += iconBand + windBandHeight;
 
     this._chartHeight = (this.focussed
       ? height - windBandHeight - hourLabelBand - 10
@@ -2497,6 +2503,19 @@ export class MeteogramCard extends LitElement {
     );
     this._chartRenderer.drawGridOutline(chart);
 
+    // Precipitation-probability background: light-blue filled area (behind all series)
+    if (
+      precipitationProbability &&
+      precipitationProbability.some((p) => p !== null && p !== undefined)
+    ) {
+      this._chartRenderer.drawPrecipProbabilityArea(
+        chart,
+        precipitationProbability,
+        N,
+        x
+      );
+    }
+
     // Draw date labels at top
     if (
       this._chartRenderer &&
@@ -2521,7 +2540,7 @@ export class MeteogramCard extends LitElement {
         dayStarts,
         margin,
         x,
-        windBandHeight
+        0
       );
     } else {
       this._chartRenderer.drawBottomHourLabels(
@@ -2529,7 +2548,7 @@ export class MeteogramCard extends LitElement {
         data.time,
         margin,
         x,
-        windBandHeight,
+        0,
         width
       );
     }

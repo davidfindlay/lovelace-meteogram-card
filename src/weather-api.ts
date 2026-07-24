@@ -12,6 +12,7 @@ export interface ForecastData {
     windSpeed: (number | null)[];
     windGust: (number | null)[];
     windDirection: (number | null)[];
+    precipitationProbability: (number | null)[];
     symbolCode: string[];
     fetchTimestamp?: string;
     units?: {
@@ -435,6 +436,7 @@ export class WeatherAPI {
                 windSpeed: [],
                 windGust: [],
                 windDirection: [],
+                precipitationProbability: [],
                 symbolCode: [],
                 pressure: [],
                 units: undefined
@@ -455,6 +457,13 @@ export class WeatherAPI {
                 result.windGust.push(instant.wind_speed_of_gust ?? null);
                 result.windDirection.push(instant.wind_from_direction ?? null);
                 result.pressure.push(instant.air_pressure_at_sea_level ?? null);
+                result.precipitationProbability.push(
+                    (next1h && typeof next1h.probability_of_precipitation === 'number')
+                        ? next1h.probability_of_precipitation
+                        : ((next6h && typeof next6h.probability_of_precipitation === 'number')
+                            ? next6h.probability_of_precipitation
+                            : null)
+                );
 
                 if (next1h) {
                     // Only use actual min/max values if they exist, otherwise set to null

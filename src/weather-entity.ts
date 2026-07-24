@@ -196,6 +196,7 @@ export class WeatherEntityAPI {
             windSpeed: [],
             windDirection: [],
             windGust: [],
+            precipitationProbability: [],
             symbolCode: [],
             pressure: [],
             fetchTimestamp: new Date().toISOString(),
@@ -215,6 +216,7 @@ export class WeatherEntityAPI {
             result.cloudCover.push('cloud_coverage' in item && typeof item.cloud_coverage === 'number' ? item.cloud_coverage : null);
             result.windSpeed.push('wind_speed' in item && typeof item.wind_speed === 'number' ? item.wind_speed : null);
             result.windDirection.push('wind_bearing' in item && typeof item.wind_bearing === 'number' ? item.wind_bearing : null);
+            result.precipitationProbability.push('precipitation_probability' in item && typeof item.precipitation_probability === 'number' ? item.precipitation_probability : null);
             
             // Handle wind gust with proper null handling
             if ('wind_gust' in item && typeof item.wind_gust === 'number') {

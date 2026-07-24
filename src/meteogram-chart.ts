@@ -36,7 +36,9 @@ export class MeteogramChart {
         const freqRaw = this.card.iconFrequency;
         const freq = (typeof freqRaw === "number" && freqRaw > 0) ? Math.round(freqRaw) : null;
         const topBar = !!this.card.iconsTopBar;
-        const topBarY = -42; // in the reserved band above the plot, clear of the graph
+        // Icons sit at the very top, above the wind band. margin.top reserves
+        // iconBand + windBandHeight, so lift icons clear of the wind strip.
+        const topBarY = -((this.card._windBandHeight || 0) + 42);
         const showIcon = (i: number): boolean => {
             if (freq) {
                 const t = data && data.time ? data.time[i] : null;
@@ -136,6 +138,62 @@ export class MeteogramChart {
             .attr("y1", 0).attr("y2" , this.card._chartHeight)
             .attr("stroke", "var(--meteogram-grid-color, #e0e0e0)")
             .attr("stroke-width", 3);
+    }
+
+    /**
+     * Draw precipitation-probability (chance of rain, %) as a light-blue filled
+     * area across the background of the plot. 0% sits on the baseline, 100% fills
+     * the full chart height. Nulls break the area into separate segments.
+     */
+    public drawPrecipProbabilityArea(
+        chart: any,
+        precipProb: (number | null)[],
+        N: number,
+        x: any
+    ) {
+        const h = this.card._chartHeight;
+        // Map 0-100% onto the full plot height (bottom = 0%, top = 100%).
+        const yProb = d3.scaleLinear().domain([0, 100]).range([h, 0]);
+
+        const points = d3.range(N).map((i: number) => ({
+            i,
+            v: (typeof precipProb[i] === "number" && !isNaN(precipProb[i] as number))
+                ? (precipProb[i] as number)
+                : null,
+        }));
+
+        const area = d3.area()
+            .defined((d: any) => d.v !== null)
+            .x((d: any) => x(d.i))
+            .y0(h)
+            .y1((d: any) => yProb(Math.max(0, Math.min(100, d.v))))
+            .curve(d3.curveMonotoneX);
+
+        chart.append("path")
+            .datum(points)
+            .attr("class", "precip-prob-area")
+            .attr("d", area)
+            .attr("fill", "var(--meteogram-precip-prob-color, #4fc3f7)")
+            .attr("fill-opacity", "var(--meteogram-precip-prob-opacity, 0.18)")
+            .attr("stroke", "none")
+            .attr("pointer-events", "none");
+
+        // Faint line along the top edge of the area so it reads as a line graph.
+        const probLine = d3.line()
+            .defined((d: any) => d.v !== null)
+            .x((d: any) => x(d.i))
+            .y((d: any) => yProb(Math.max(0, Math.min(100, d.v))))
+            .curve(d3.curveMonotoneX);
+
+        chart.append("path")
+            .datum(points)
+            .attr("class", "precip-prob-line")
+            .attr("d", probLine)
+            .attr("fill", "none")
+            .attr("stroke", "var(--meteogram-precip-prob-color, #4fc3f7)")
+            .attr("stroke-opacity", "var(--meteogram-precip-prob-line-opacity, 0.55)")
+            .attr("stroke-width", 1.5)
+            .attr("pointer-events", "none");
     }
 
     drawBottomHourLabels(svg: any, time: Date[], margin: any, x: any, windBandHeight: number, _width: number) {
@@ -1078,7 +1136,9 @@ export class MeteogramChart {
         windDirection: (number|null)[],
         windSpeedUnit: string
     ) {
-        const windBandYOffset = margin.top + this.card._chartHeight;
+        // Wind band sits in the reserved strip at the TOP, directly below the icon bar
+        // (margin.top already reserves iconBand + windBandHeight above the plot).
+        const windBandYOffset = margin.top - windBandHeight;
         const windBand = svg.append('g')
             .attr('transform', `translate(${margin.left},${windBandYOffset})`);
 
