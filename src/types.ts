@@ -13,6 +13,7 @@ export interface MeteogramCardConfig {
     dense_weather_icons?: boolean; // Add this line
     icon_frequency?: number; // Hours between weather icons: 1,2,3,4,6,12,24 (overrides dense_weather_icons)
     icons_top_bar?: boolean; // Draw weather icons in a bar along the top of the graph
+    day_labels?: boolean; // Show weekday labels (Mon, Tue...) along the bottom instead of hours
     meteogram_hours?: string | number; // "8h", "12h", "24h", "48h", "54h", "max" | numeric (e.g., 120)
     styles?: MeteogramStyleConfig; // <-- Updated for mode support
     diagnostics?: boolean; // Add this line

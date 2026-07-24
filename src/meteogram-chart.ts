@@ -950,6 +950,35 @@ export class MeteogramChart {
                 });
         }
     }
+    /**
+     * Draw a single weekday label (e.g. "Fri") centred under each day, along the
+     * bottom axis, instead of the hourly labels. Used when day_labels is enabled.
+     */
+    public drawBottomDayLabels(
+        svg: any,
+        time: Date[],
+        dayStarts: number[],
+        margin: any,
+        x: any,
+        windBandHeight: number
+    ) {
+        const y = margin.top + this.card._chartHeight + windBandHeight + 15;
+        const haLocale = this.card.getHaLocale();
+        const N = time.length;
+        for (let i = 0; i < dayStarts.length; i++) {
+            const startIdx = dayStarts[i];
+            const endIdx = (i + 1 < dayStarts.length) ? dayStarts[i + 1] : N - 1;
+            if (endIdx <= startIdx) continue;
+            const centerIdx = (startIdx + endIdx) / 2;
+            svg.append("text")
+                .attr("class", "bottom-hour-label")
+                .attr("x", margin.left + x(centerIdx))
+                .attr("y", y)
+                .attr("text-anchor", "middle")
+                .text(time[startIdx].toLocaleDateString(haLocale, { weekday: "short" }));
+        }
+    }
+
     public drawCloudBand(chart: any, cloudCover: (number|null)[], N: number, x: any, legendX?: number, legendY?: number) {
         // Filter out nulls for cloudCover array
         const cloudFiltered = cloudCover.map(c => c ?? 0);

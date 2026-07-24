@@ -67,6 +67,7 @@ export class MeteogramCard extends LitElement {
     this.denseWeatherIcons = true;
     this.iconFrequency = undefined;
     this.iconsTopBar = false;
+    this.dayLabels = false;
     this.meteogramHours = "48h";
   }
 
@@ -137,6 +138,7 @@ export class MeteogramCard extends LitElement {
   @property({ type: Boolean }) denseWeatherIcons = true; // NEW: icon density config
   @property({ type: Number }) iconFrequency?: number; // NEW: hours between weather icons (1,2,3,4,6,12,24)
   @property({ type: Boolean }) iconsTopBar = false; // NEW: draw weather icons in a bar at the top of the graph
+  @property({ type: Boolean }) dayLabels = false; // NEW: weekday labels along the bottom instead of hours
   @property({ type: String }) meteogramHours: string | number = "48h"; // Default is now 48h
   @property({ type: Object }) styles: MeteogramStyleConfig = {}; // NEW: styles override
   @property({ type: Boolean }) diagnostics: boolean = DIAGNOSTICS_DEFAULT; // Initialize here
@@ -461,6 +463,9 @@ export class MeteogramCard extends LitElement {
     // NEW: draw weather icons in a bar along the top of the graph
     this.iconsTopBar =
       config.icons_top_bar !== undefined ? !!config.icons_top_bar : false;
+    // NEW: weekday labels along the bottom instead of hourly labels
+    this.dayLabels =
+      config.day_labels !== undefined ? !!config.day_labels : false;
     this.meteogramHours = config.meteogram_hours || "48h";
     this.styles = config.styles || {};
     // Add diagnostics option
@@ -537,6 +542,7 @@ export class MeteogramCard extends LitElement {
       dense_weather_icons: true,
       icon_frequency: 1,
       icons_top_bar: false,
+      day_labels: false,
       meteogram_hours: "48h",
       diagnostics: DIAGNOSTICS_DEFAULT, // Default to DIAGNOSTICS_DEFAULT
       debug: false, // Debug logging (undocumented)
@@ -556,6 +562,7 @@ export class MeteogramCard extends LitElement {
       dense_weather_icons: true,
       icon_frequency: 1,
       icons_top_bar: false,
+      day_labels: false,
       meteogram_hours: "48h",
       diagnostics: DIAGNOSTICS_DEFAULT, // Default to DIAGNOSTICS_DEFAULT
       debug: false, // Debug logging (undocumented)
@@ -1083,6 +1090,7 @@ export class MeteogramCard extends LitElement {
       changedProps.has("denseWeatherIcons") ||
       changedProps.has("iconFrequency") ||
       changedProps.has("iconsTopBar") ||
+      changedProps.has("dayLabels") ||
       changedProps.has("meteogramHours");
 
     if (needsRedraw) {
@@ -2485,15 +2493,26 @@ export class MeteogramCard extends LitElement {
       );
     }
 
-    // Draw bottom hour labels using helper
-    this._chartRenderer.drawBottomHourLabels(
-      svg,
-      data.time,
-      margin,
-      x,
-      windBandHeight,
-      width
-    );
+    // Draw bottom labels using helper: weekday labels (day_labels) or hour labels
+    if (this.dayLabels) {
+      this._chartRenderer.drawBottomDayLabels(
+        svg,
+        data.time,
+        dayStarts,
+        margin,
+        x,
+        windBandHeight
+      );
+    } else {
+      this._chartRenderer.drawBottomHourLabels(
+        svg,
+        data.time,
+        margin,
+        x,
+        windBandHeight,
+        width
+      );
+    }
 
     // Draw all chart elements in order of background to foreground
     // 1. Cloud band (if enabled)

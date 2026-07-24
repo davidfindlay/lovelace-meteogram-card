@@ -48,6 +48,7 @@ export class MeteogramCardEditor extends LitElement implements MeteogramCardEdit
       dense_weather_icons: true,
       icon_frequency: 1,
       icons_top_bar: false,
+      day_labels: false,
       meteogram_hours: '48h',
       styles: undefined,
       diagnostics: false,
@@ -117,6 +118,7 @@ export class MeteogramCardEditor extends LitElement implements MeteogramCardEdit
         setValue(this._elements.get('dense_weather_icons'), this._config.dense_weather_icons !== undefined ? this._config.dense_weather_icons : true, 'checked');
         setValue(this._elements.get('icon_frequency'), this._config.icon_frequency !== undefined ? String(this._config.icon_frequency) : '1');
         setValue(this._elements.get('icons_top_bar'), this._config.icons_top_bar !== undefined ? this._config.icons_top_bar : false, 'checked');
+        setValue(this._elements.get('day_labels'), this._config.day_labels !== undefined ? this._config.day_labels : false, 'checked');
         setValue(this._elements.get('meteogram_hours'), this._config.meteogram_hours || '48h');
         setValue(this._elements.get('diagnostics'), this._config.diagnostics !== undefined ? this._config.diagnostics : false, 'checked');
         setValue(this._elements.get('entity_id'), this._config.entity_id || '');
@@ -149,6 +151,7 @@ export class MeteogramCardEditor extends LitElement implements MeteogramCardEdit
         const denseWeatherIcons = this._config.dense_weather_icons !== undefined ? this._config.dense_weather_icons : true;
         const iconFrequency = this._config.icon_frequency !== undefined ? Number(this._config.icon_frequency) : 1;
         const iconsTopBar = this._config.icons_top_bar !== undefined ? this._config.icons_top_bar : false;
+        const dayLabels = this._config.day_labels !== undefined ? this._config.day_labels : false;
         const meteogramHours = this._config.meteogram_hours || "48h";
         const diagnostics = this._config.diagnostics !== undefined ? this._config.diagnostics : false;
         const focussed = this._config.focussed !== undefined ? this._config.focussed : false;
@@ -358,6 +361,14 @@ export class MeteogramCardEditor extends LitElement implements MeteogramCardEdit
         </div>
 
         <div class="toggle-row">
+          <div class="toggle-label">${trnslt(hass, "ui.editor.meteogram.attributes.day_labels", "Day labels on bottom axis")}</div>
+          <ha-switch
+            id="day-labels"
+            .checked="${dayLabels}"
+          ></ha-switch>
+        </div>
+
+        <div class="toggle-row">
           <div class="toggle-label">${trnslt(hass, "ui.editor.meteogram.display_mode", "Display Mode")}</div>
           <select id="display-mode-select">
             <option value="full" ${displayMode === "full" ? "selected" : ""}>Full (all features)</option>
@@ -519,6 +530,13 @@ export class MeteogramCardEditor extends LitElement implements MeteogramCardEdit
                 this._elements.set('icons_top_bar', iconsTopBarSwitch);
             }
 
+            const dayLabelsSwitch = this.querySelector('#day-labels') as ConfigurableHTMLElement;
+            if (dayLabelsSwitch) {
+                dayLabelsSwitch.configValue = 'day_labels';
+                dayLabelsSwitch.addEventListener('change', this._valueChanged.bind(this));
+                this._elements.set('day_labels', dayLabelsSwitch);
+            }
+
             const meteogramHoursSelect = this.querySelector('#meteogram-hours-select') as ConfigurableHTMLElement;
             const customHoursRow = this.querySelector('.custom-hours-row') as HTMLElement;
             const customHoursInput = this.querySelector('#custom-hours-input') as ConfigurableHTMLElement;
@@ -630,7 +648,7 @@ export class MeteogramCardEditor extends LitElement implements MeteogramCardEdit
     // List of boolean config fields
     const boolFields = [
   'show_cloud_cover', 'show_pressure', 'show_precipitation', 'show_weather_icons',
-      'show_wind', 'dense_weather_icons', 'icons_top_bar', 'diagnostics', 'focussed'
+      'show_wind', 'dense_weather_icons', 'icons_top_bar', 'day_labels', 'diagnostics', 'focussed'
     ];
 
     // Handle different input types
