@@ -21,6 +21,7 @@ export interface MeteogramCardConfig {
     diagnostics?: boolean; // Add this line
     debug?: boolean; // Add this line for debug logging (undocumented)
     entity_id?: string; // Add this line for weather entity selection
+    pressure_entity?: string; // Overlay pressure forecast from a different weather entity (e.g. met.no)
     focussed?: boolean; // Add this line for Focussed mode
     display_mode?: "full" | "core" | "focussed"; // Add this line for display mode
     aspect_ratio?: string; // Add this line for aspect ratio support

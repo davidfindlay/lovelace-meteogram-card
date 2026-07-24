@@ -148,6 +148,7 @@ export class MeteogramCard extends LitElement {
   @property({ type: Boolean }) diagnostics: boolean = DIAGNOSTICS_DEFAULT; // Initialize here
   @property({ type: Boolean }) debug: boolean = false; // Debug logging (undocumented)
   @property({ type: String }) entityId?: string; // NEW: entity_id for weather integration
+  @property({ type: String }) pressureEntity?: string; // NEW: overlay pressure forecast from a different weather entity
   @property({ type: Boolean }) focussed = false; // NEW: Focussed mode
   @property({ type: String }) displayMode: "full" | "core" | "focussed" =
     "full";
@@ -210,6 +211,58 @@ export class MeteogramCard extends LitElement {
 
   // Add WeatherEntityAPI instance as a class variable
   private _weatherEntityApiInstance: WeatherEntityAPI | null = null;
+  // Secondary entity used only to overlay a pressure forecast (see pressure_entity)
+  private _pressureEntityApiInstance: WeatherEntityAPI | null = null;
+
+  /**
+   * When pressure_entity is configured, pull its forecast pressure series and
+   * merge it (time-aligned, nearest within 3h) into the main forecast data so
+   * the pressure line can be drawn even when the primary entity (e.g. BOM) has
+   * no pressure forecast.
+   */
+  private _applyPressureOverlay(entityData: ForecastData): void {
+    const pe = this.pressureEntity;
+    if (!pe || pe === "none" || pe === this.entityId) return;
+    if (!this.hass?.states?.[pe]) return;
+    if (!this._pressureEntityApiInstance) {
+      this._pressureEntityApiInstance = new WeatherEntityAPI(
+        this.hass,
+        pe,
+        this,
+        "pressureOverlay",
+        this.debug
+      );
+    }
+    const pData = this._pressureEntityApiInstance.getForecastData();
+    if (!pData || !pData.time || !pData.pressure) return;
+    const pts: { t: number; p: number }[] = [];
+    for (let i = 0; i < pData.time.length; i++) {
+      const p = pData.pressure[i];
+      if (typeof p === "number" && !isNaN(p)) {
+        pts.push({ t: pData.time[i].getTime(), p });
+      }
+    }
+    if (!pts.length) return;
+    pts.sort((a, b) => a.t - b.t);
+    const maxGap = 3 * 3600 * 1000; // accept a match within 3 hours
+    entityData.pressure = entityData.time.map((dt) => {
+      const tt = dt.getTime();
+      let best: { t: number; p: number } | null = null;
+      let bestD = Infinity;
+      for (const pt of pts) {
+        const d = Math.abs(pt.t - tt);
+        if (d < bestD) {
+          bestD = d;
+          best = pt;
+        }
+      }
+      return best && bestD <= maxGap ? best.p : null;
+    });
+    if (pData.units?.pressure) {
+      entityData.units = entityData.units || {};
+      entityData.units.pressure = pData.units.pressure;
+    }
+  }
 
   // Public getter for console debugging access
   get weatherEntityAPI(): WeatherEntityAPI | null {
@@ -488,6 +541,16 @@ export class MeteogramCard extends LitElement {
     this.debug = config.debug !== undefined ? config.debug : false;
     // Set entityId from config
     this.entityId = config.entity_id || undefined;
+    // NEW: overlay pressure from a different weather entity (e.g. met.no) when the
+    // main entity's forecast has no pressure (e.g. Bureau of Meteorology).
+    const newPressureEntity = config.pressure_entity || undefined;
+    if (newPressureEntity !== this.pressureEntity) {
+      if (this._pressureEntityApiInstance) {
+        this._pressureEntityApiInstance.destroy("pressure_entity changed");
+        this._pressureEntityApiInstance = null;
+      }
+      this.pressureEntity = newPressureEntity;
+    }
     // Ensure boolean for focussed mode
     this.focussed = migratedDisplayMode === "focussed";
     // Set displayMode from config (now migrated from display_mode)
@@ -660,6 +723,10 @@ export class MeteogramCard extends LitElement {
     if (this._weatherEntityApiInstance) {
       this._weatherEntityApiInstance.destroy("disconnectedCallback");
       this._weatherEntityApiInstance = null;
+    }
+    if (this._pressureEntityApiInstance) {
+      this._pressureEntityApiInstance.destroy("disconnectedCallback");
+      this._pressureEntityApiInstance = null;
     }
 
     document.removeEventListener(
@@ -1416,6 +1483,8 @@ export class MeteogramCard extends LitElement {
           `Weather entity ${this.entityId} is unavailable. Waiting for it to become available...`
         );
       }
+      // Overlay pressure from a secondary entity (e.g. met.no) if configured
+      this._applyPressureOverlay(entityData);
       this._currentUnits =
         entityData && entityData.units ? entityData.units : {};
       this.updateDataAvailability(entityData);
@@ -2325,7 +2394,8 @@ export class MeteogramCard extends LitElement {
         // Reserve room on the right for the wind-speed axis when wind is shown
         right: windAvailable ? 34 : 14,
         bottom: hourLabelBand + 10,
-        left: 32,
+        // Reserve room on the left-outer for the pressure axis when shown
+        left: 32 + (pressureAvailable ? 42 : 0),
       };
     } else if (!pressureAvailable) {
       this._margin = {
@@ -2645,6 +2715,8 @@ export class MeteogramCard extends LitElement {
           : enabledLegends.findIndex((l: LegendInfo) =>
               l.class.includes("legend-pressure")
             );
+      // Pressure axis goes on the LEFT-outer (beside temperature) so it does not
+      // collide with the wind axis on the right.
       if (pressureLegendIndex >= 0 && legendPositions.length > 0) {
         const legendPos = legendPositions[pressureLegendIndex];
         this._chartRenderer.drawPressureLine(
@@ -2653,10 +2725,21 @@ export class MeteogramCard extends LitElement {
           x,
           yPressure,
           legendPos.x,
-          legendPos.y
+          legendPos.y,
+          "left",
+          40
         );
       } else {
-        this._chartRenderer.drawPressureLine(chart, pressure, x, yPressure);
+        this._chartRenderer.drawPressureLine(
+          chart,
+          pressure,
+          x,
+          yPressure,
+          undefined,
+          undefined,
+          "left",
+          40
+        );
       }
     }
 

@@ -1072,7 +1072,7 @@ export class MeteogramChart {
                 .text(trnslt(this.card.hass, "ui.card.meteogram.attributes.cloud_coverage", "Cloud Cover") + ` (%)`);
         }
     }
-    public drawPressureLine(chart: any, pressure: (number|null)[], x: any, yPressure: any, legendX?: number, legendY?: number) {
+    public drawPressureLine(chart: any, pressure: (number|null)[], x: any, yPressure: any, legendX?: number, legendY?: number, axisSide: "left" | "right" = "right", axisOffset = 0) {
     //
         const pressureLine = d3.line<number | null>()
             .defined((d: number | null) => d !== null && typeof d === "number" && !isNaN(d))
@@ -1083,9 +1083,11 @@ export class MeteogramChart {
             .datum(pressure)
             .attr("class", "pressure-line")
             .attr("d", pressureLine)
-            .attr("fill", "none"); // Ensure no area fill, let CSS handle stroke
+            .attr("fill", "none")
+            .attr("stroke", "var(--meteogram-pressure-color, #000000)")
+            .attr("stroke-width", 1.8);
 
-        // Draw right-side pressure axis
+        // Draw pressure axis (left-outer or right-outer depending on axisSide)
         const pressureDomain = yPressure.domain();
         const minPressure = Math.ceil(pressureDomain[0] / 10) * 10; // Round to nearest 10
         const maxPressure = Math.floor(pressureDomain[1] / 10) * 10; // Round to nearest 10
@@ -1093,10 +1095,13 @@ export class MeteogramChart {
         for (let p = minPressure; p <= maxPressure; p += 10) { // Increment by 10 instead of 1
             pressureTicks.push(p);
         }
+        const axisX = axisSide === "left" ? -axisOffset : this.card._chartWidth + axisOffset;
+        const axisGen = axisSide === "left" ? d3.axisLeft(yPressure) : d3.axisRight(yPressure);
         chart.append("g")
             .attr("class", "pressure-axis")
-            .attr("transform", `translate(${this.card._chartWidth}, 0)`)
-            .call(d3.axisRight(yPressure)
+            .attr("transform", `translate(${axisX}, 0)`)
+            .attr("color", "var(--meteogram-pressure-color, #000000)")
+            .call(axisGen
                 .tickValues(pressureTicks)
                 .tickFormat(d3.format('d') as any));
 
