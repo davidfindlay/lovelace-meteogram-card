@@ -666,7 +666,7 @@ export class MeteogramChart {
 
     }
 
-    drawChartGrid(svg: any, chart: any, d3: any, x: any, yTemp: any, N: number, margin: any, dayStarts: number[]) {
+    drawChartGrid(svg: any, chart: any, d3: any, x: any, yTemp: any, N: number, margin: any, dayStarts: number[], time?: Date[]) {
         // Day boundary ticks (top short ticks)
         const tickLength = 12; // Short tick length above the top line
         svg.selectAll(".day-tic")
@@ -695,11 +695,18 @@ export class MeteogramChart {
                 .tickSize(-this.card._chartWidth)
                 .tickFormat(() => ""));
 
-        // Add vertical gridlines
+        // Add vertical gridlines. When day_grid is on, only draw at midnight and
+        // midday instead of every hour.
+        const xgridIdx = (this.card.dayGrid && time)
+            ? d3.range(N).filter((i: number) => {
+                const h = time[i].getHours();
+                return h === 0 || h === 12;
+              })
+            : d3.range(N);
         chart.append("g")
             .attr("class", "xgrid")
             .selectAll("line")
-            .data(d3.range(N))
+            .data(xgridIdx)
             .enter().append("line")
             .attr("x1", (i: number) => x(i))
             .attr("x2", (i: number) => x(i))

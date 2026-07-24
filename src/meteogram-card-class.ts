@@ -68,6 +68,8 @@ export class MeteogramCard extends LitElement {
     this.iconFrequency = undefined;
     this.iconsTopBar = false;
     this.dayLabels = false;
+    this.showLegend = true;
+    this.dayGrid = false;
     this.meteogramHours = "48h";
   }
 
@@ -139,6 +141,8 @@ export class MeteogramCard extends LitElement {
   @property({ type: Number }) iconFrequency?: number; // NEW: hours between weather icons (1,2,3,4,6,12,24)
   @property({ type: Boolean }) iconsTopBar = false; // NEW: draw weather icons in a bar at the top of the graph
   @property({ type: Boolean }) dayLabels = false; // NEW: weekday labels along the bottom instead of hours
+  @property({ type: Boolean }) showLegend = true; // NEW: show the top Temperature/Precipitation legend labels
+  @property({ type: Boolean }) dayGrid = false; // NEW: vertical gridlines only at midnight & midday
   @property({ type: String }) meteogramHours: string | number = "48h"; // Default is now 48h
   @property({ type: Object }) styles: MeteogramStyleConfig = {}; // NEW: styles override
   @property({ type: Boolean }) diagnostics: boolean = DIAGNOSTICS_DEFAULT; // Initialize here
@@ -466,6 +470,12 @@ export class MeteogramCard extends LitElement {
     // NEW: weekday labels along the bottom instead of hourly labels
     this.dayLabels =
       config.day_labels !== undefined ? !!config.day_labels : false;
+    // NEW: show/hide the top Temperature/Precipitation legend labels
+    this.showLegend =
+      config.show_legend !== undefined ? !!config.show_legend : true;
+    // NEW: vertical gridlines only at midnight & midday
+    this.dayGrid =
+      config.day_grid !== undefined ? !!config.day_grid : false;
     this.meteogramHours = config.meteogram_hours || "48h";
     this.styles = config.styles || {};
     // Add diagnostics option
@@ -543,6 +553,8 @@ export class MeteogramCard extends LitElement {
       icon_frequency: 1,
       icons_top_bar: false,
       day_labels: false,
+      show_legend: true,
+      day_grid: false,
       meteogram_hours: "48h",
       diagnostics: DIAGNOSTICS_DEFAULT, // Default to DIAGNOSTICS_DEFAULT
       debug: false, // Debug logging (undocumented)
@@ -563,6 +575,8 @@ export class MeteogramCard extends LitElement {
       icon_frequency: 1,
       icons_top_bar: false,
       day_labels: false,
+      show_legend: true,
+      day_grid: false,
       meteogram_hours: "48h",
       diagnostics: DIAGNOSTICS_DEFAULT, // Default to DIAGNOSTICS_DEFAULT
       debug: false, // Debug logging (undocumented)
@@ -1091,6 +1105,8 @@ export class MeteogramCard extends LitElement {
       changedProps.has("iconFrequency") ||
       changedProps.has("iconsTopBar") ||
       changedProps.has("dayLabels") ||
+      changedProps.has("showLegend") ||
+      changedProps.has("dayGrid") ||
       changedProps.has("meteogramHours");
 
     if (needsRedraw) {
@@ -2302,9 +2318,9 @@ export class MeteogramCard extends LitElement {
     } else if (this.focussed) {
       this._margin = {
         top: 10,
-        right: 40,
+        right: 14,
         bottom: hourLabelBand + 10,
-        left: 40,
+        left: 32,
       };
     } else if (!pressureAvailable) {
       this._margin = {
@@ -2431,7 +2447,7 @@ export class MeteogramCard extends LitElement {
     // Calculate legend positions
     // Only allocate slots for enabled legends, so they fill left-to-right
     // Skip legends entirely in "core" display mode
-    const numLegends = this.displayMode === "core" ? 0 : enabledLegends.length;
+    const numLegends = (this.displayMode === "core" || !this.showLegend) ? 0 : enabledLegends.length;
     const legendPositions =
       this.displayMode === "core"
         ? []
@@ -2476,7 +2492,8 @@ export class MeteogramCard extends LitElement {
       yTemp,
       N,
       margin,
-      dayStarts
+      dayStarts,
+      data.time
     );
     this._chartRenderer.drawGridOutline(chart);
 

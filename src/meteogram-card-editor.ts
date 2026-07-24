@@ -49,6 +49,8 @@ export class MeteogramCardEditor extends LitElement implements MeteogramCardEdit
       icon_frequency: 1,
       icons_top_bar: false,
       day_labels: false,
+      show_legend: true,
+      day_grid: false,
       meteogram_hours: '48h',
       styles: undefined,
       diagnostics: false,
@@ -119,6 +121,8 @@ export class MeteogramCardEditor extends LitElement implements MeteogramCardEdit
         setValue(this._elements.get('icon_frequency'), this._config.icon_frequency !== undefined ? String(this._config.icon_frequency) : '1');
         setValue(this._elements.get('icons_top_bar'), this._config.icons_top_bar !== undefined ? this._config.icons_top_bar : false, 'checked');
         setValue(this._elements.get('day_labels'), this._config.day_labels !== undefined ? this._config.day_labels : false, 'checked');
+        setValue(this._elements.get('show_legend'), this._config.show_legend !== undefined ? this._config.show_legend : true, 'checked');
+        setValue(this._elements.get('day_grid'), this._config.day_grid !== undefined ? this._config.day_grid : false, 'checked');
         setValue(this._elements.get('meteogram_hours'), this._config.meteogram_hours || '48h');
         setValue(this._elements.get('diagnostics'), this._config.diagnostics !== undefined ? this._config.diagnostics : false, 'checked');
         setValue(this._elements.get('entity_id'), this._config.entity_id || '');
@@ -152,6 +156,8 @@ export class MeteogramCardEditor extends LitElement implements MeteogramCardEdit
         const iconFrequency = this._config.icon_frequency !== undefined ? Number(this._config.icon_frequency) : 1;
         const iconsTopBar = this._config.icons_top_bar !== undefined ? this._config.icons_top_bar : false;
         const dayLabels = this._config.day_labels !== undefined ? this._config.day_labels : false;
+        const showLegend = this._config.show_legend !== undefined ? this._config.show_legend : true;
+        const dayGrid = this._config.day_grid !== undefined ? this._config.day_grid : false;
         const meteogramHours = this._config.meteogram_hours || "48h";
         const diagnostics = this._config.diagnostics !== undefined ? this._config.diagnostics : false;
         const focussed = this._config.focussed !== undefined ? this._config.focussed : false;
@@ -369,6 +375,22 @@ export class MeteogramCardEditor extends LitElement implements MeteogramCardEdit
         </div>
 
         <div class="toggle-row">
+          <div class="toggle-label">${trnslt(hass, "ui.editor.meteogram.attributes.show_legend", "Show legend labels")}</div>
+          <ha-switch
+            id="show-legend"
+            .checked="${showLegend}"
+          ></ha-switch>
+        </div>
+
+        <div class="toggle-row">
+          <div class="toggle-label">${trnslt(hass, "ui.editor.meteogram.attributes.day_grid", "Grid lines at midnight & midday only")}</div>
+          <ha-switch
+            id="day-grid"
+            .checked="${dayGrid}"
+          ></ha-switch>
+        </div>
+
+        <div class="toggle-row">
           <div class="toggle-label">${trnslt(hass, "ui.editor.meteogram.display_mode", "Display Mode")}</div>
           <select id="display-mode-select">
             <option value="full" ${displayMode === "full" ? "selected" : ""}>Full (all features)</option>
@@ -537,6 +559,20 @@ export class MeteogramCardEditor extends LitElement implements MeteogramCardEdit
                 this._elements.set('day_labels', dayLabelsSwitch);
             }
 
+            const showLegendSwitch = this.querySelector('#show-legend') as ConfigurableHTMLElement;
+            if (showLegendSwitch) {
+                showLegendSwitch.configValue = 'show_legend';
+                showLegendSwitch.addEventListener('change', this._valueChanged.bind(this));
+                this._elements.set('show_legend', showLegendSwitch);
+            }
+
+            const dayGridSwitch = this.querySelector('#day-grid') as ConfigurableHTMLElement;
+            if (dayGridSwitch) {
+                dayGridSwitch.configValue = 'day_grid';
+                dayGridSwitch.addEventListener('change', this._valueChanged.bind(this));
+                this._elements.set('day_grid', dayGridSwitch);
+            }
+
             const meteogramHoursSelect = this.querySelector('#meteogram-hours-select') as ConfigurableHTMLElement;
             const customHoursRow = this.querySelector('.custom-hours-row') as HTMLElement;
             const customHoursInput = this.querySelector('#custom-hours-input') as ConfigurableHTMLElement;
@@ -648,7 +684,7 @@ export class MeteogramCardEditor extends LitElement implements MeteogramCardEdit
     // List of boolean config fields
     const boolFields = [
   'show_cloud_cover', 'show_pressure', 'show_precipitation', 'show_weather_icons',
-      'show_wind', 'dense_weather_icons', 'icons_top_bar', 'day_labels', 'diagnostics', 'focussed'
+      'show_wind', 'dense_weather_icons', 'icons_top_bar', 'day_labels', 'show_legend', 'day_grid', 'diagnostics', 'focussed'
     ];
 
     // Handle different input types
