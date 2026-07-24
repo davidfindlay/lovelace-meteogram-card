@@ -1,5 +1,25 @@
 import {ForecastData} from "./weather-api";
 
+// Map compass point strings (e.g. BOM's "SSE") to degrees. Some weather
+// integrations (Bureau of Meteorology) report wind_bearing as a cardinal
+// string rather than numeric degrees.
+const COMPASS_TO_DEG: Record<string, number> = {
+    N: 0, NNE: 22.5, NE: 45, ENE: 67.5,
+    E: 90, ESE: 112.5, SE: 135, SSE: 157.5,
+    S: 180, SSW: 202.5, SW: 225, WSW: 247.5,
+    W: 270, WNW: 292.5, NW: 315, NNW: 337.5,
+};
+function parseWindBearing(raw: any): number | null {
+    if (typeof raw === "number" && !isNaN(raw)) return raw;
+    if (typeof raw === "string") {
+        const key = raw.trim().toUpperCase();
+        if (key in COMPASS_TO_DEG) return COMPASS_TO_DEG[key];
+        const n = parseFloat(raw);
+        if (!isNaN(n)) return n;
+    }
+    return null;
+}
+
 export class WeatherEntityAPI {
     hass: any;
     entityId: string;
@@ -215,7 +235,7 @@ export class WeatherEntityAPI {
             // Always push values to maintain array consistency (use null if not present)
             result.cloudCover.push('cloud_coverage' in item && typeof item.cloud_coverage === 'number' ? item.cloud_coverage : null);
             result.windSpeed.push('wind_speed' in item && typeof item.wind_speed === 'number' ? item.wind_speed : null);
-            result.windDirection.push('wind_bearing' in item && typeof item.wind_bearing === 'number' ? item.wind_bearing : null);
+            result.windDirection.push('wind_bearing' in item ? parseWindBearing(item.wind_bearing) : null);
             result.precipitationProbability.push('precipitation_probability' in item && typeof item.precipitation_probability === 'number' ? item.precipitation_probability : null);
             
             // Handle wind gust with proper null handling

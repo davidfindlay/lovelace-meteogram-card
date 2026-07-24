@@ -1610,11 +1610,11 @@ export class MeteogramCard extends LitElement {
       Array.isArray(data.temperature) &&
       data.temperature.some((val) => val !== null && typeof val === "number");
 
+    // Wind is available if we have speed data; direction is optional (used only
+    // for the direction flags/barbs, which are simply skipped where missing).
     this._dataAvailability.wind =
       Array.isArray(data.windSpeed) &&
-      data.windSpeed.some((val) => val !== null && typeof val === "number") &&
-      Array.isArray(data.windDirection) &&
-      data.windDirection.some((val) => val !== null && typeof val === "number");
+      data.windSpeed.some((val) => val !== null && typeof val === "number");
 
     this._dataAvailability.pressure =
       Array.isArray(data.pressure) &&
@@ -1842,8 +1842,8 @@ export class MeteogramCard extends LitElement {
         // Determine if wind data is available
         const windAvailable = this.showWind && this._dataAvailability.wind;
 
-        // Set windBand based on wind availability
-        const windBandHeight = windAvailable ? 45 : 0;
+        // Set windBand based on wind availability (taller now to fit a wind-speed line)
+        const windBandHeight = windAvailable ? 62 : 0;
         const hourLabelBand = 30;
 
         // --- ADJUST: Remove this._chartHeight cap and use full height ---

@@ -1178,6 +1178,46 @@ export class MeteogramChart {
             .attr("width", this.card._chartWidth)
             .attr("height", windBandHeight);
 
+        // --- Wind-speed line graph across the strip ---
+        // Barbs sit in a thin row at the top; the speed line occupies the lower area.
+        const barbRowY = 12;
+        const spdVals = windSpeed.filter(
+            (v): v is number => typeof v === "number" && !isNaN(v)
+        );
+        if (spdVals.length) {
+            const maxSpd = Math.max(10, d3.max(spdVals) ?? 10);
+            const ySpd = d3.scaleLinear()
+                .domain([0, maxSpd])
+                .range([windBandHeight - 4, barbRowY + 10]);
+            const spdPts = d3.range(N).map((i: number) => ({
+                i,
+                v: (typeof windSpeed[i] === "number" && !isNaN(windSpeed[i] as number))
+                    ? (windSpeed[i] as number)
+                    : null,
+            }));
+            const spdLine = d3.line<{ i: number; v: number | null }>()
+                .defined((d) => d.v !== null)
+                .x((d) => x(d.i))
+                .y((d) => ySpd(d.v as number))
+                .curve(d3.curveMonotoneX);
+            windBand.append("path")
+                .datum(spdPts)
+                .attr("class", "wind-speed-line")
+                .attr("d", spdLine as any)
+                .attr("fill", "none")
+                .attr("stroke", "var(--meteogram-wind-speed-color, #26a69a)")
+                .attr("stroke-width", 2)
+                .attr("pointer-events", "none");
+            // Peak wind-speed label (top-left of the strip)
+            windBand.append("text")
+                .attr("class", "wind-speed-max-label")
+                .attr("x", 3)
+                .attr("y", barbRowY + 8)
+                .attr("font-size", "9px")
+                .attr("fill", "var(--meteogram-wind-speed-color, #26a69a)")
+                .text(`${Math.round(maxSpd)} ${windSpeedUnit}`);
+        }
+
         // Day change lines in wind band
         const dayChangeIdx = [];
         for (let i = 1; i < N; i++) {
@@ -1232,9 +1272,10 @@ export class MeteogramChart {
             .domain([0, Math.max(15, (d3.max(windSpeed.filter((v): v is number => typeof v === 'number' && !isNaN(v))) ?? 20))])
             .range([minBarbLen, maxBarbLen]);
         
-        // Now place wind barbs 
-        const windBarbY = windBandHeight / 2;
-        
+        // Now place wind barbs — in a thin row along the TOP of the strip,
+        // above the wind-speed line (direction "flags").
+        const windBarbY = barbRowY;
+
         // Draw high-resolution barbs (between even hours)
         for (let idx = 0; idx < highResIndices.length - 1; idx++) {
             const startIdx = highResIndices[idx];
@@ -1252,7 +1293,7 @@ export class MeteogramChart {
             const gustInKnots = typeof gust === 'number' && !isNaN(gust) ? convertWindSpeed(gust, windSpeedUnit, "kt") : null;
             
             const barbLen = windLenScale(speed);
-            this.drawWindBarb(windBand, centerX, windBarbY, speedInKnots, gustInKnots, dir, barbLen, width < 400 ? 0.7 : 0.8);
+            this.drawWindBarb(windBand, centerX, windBarbY, speedInKnots, gustInKnots, dir, barbLen, width < 400 ? 0.4 : 0.5);
         }
         
         // Draw low-resolution barbs (every other point for 6-hourly data = 12-hour intervals)
@@ -1276,7 +1317,7 @@ export class MeteogramChart {
             const gustInKnots = typeof gust === 'number' && !isNaN(gust) ? convertWindSpeed(gust, windSpeedUnit, "kt") : null;
             
             const barbLen = windLenScale(speed);
-            this.drawWindBarb(windBand, x(dataIdx), windBarbY, speedInKnots, gustInKnots, dir, barbLen, width < 400 ? 0.7 : 0.8);
+            this.drawWindBarb(windBand, x(dataIdx), windBarbY, speedInKnots, gustInKnots, dir, barbLen, width < 400 ? 0.4 : 0.5);
         }
     }
 
