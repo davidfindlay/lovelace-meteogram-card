@@ -46,6 +46,8 @@ export class MeteogramCardEditor extends LitElement implements MeteogramCardEdit
       show_weather_icons: true,
       show_wind: true,
       dense_weather_icons: true,
+      icon_frequency: 1,
+      icons_top_bar: false,
       meteogram_hours: '48h',
       styles: undefined,
       diagnostics: false,
@@ -113,6 +115,8 @@ export class MeteogramCardEditor extends LitElement implements MeteogramCardEdit
         setValue(this._elements.get('show_weather_icons'), this._config.show_weather_icons !== undefined ? this._config.show_weather_icons : true, 'checked');
         setValue(this._elements.get('show_wind'), this._config.show_wind !== undefined ? this._config.show_wind : true, 'checked');
         setValue(this._elements.get('dense_weather_icons'), this._config.dense_weather_icons !== undefined ? this._config.dense_weather_icons : true, 'checked');
+        setValue(this._elements.get('icon_frequency'), this._config.icon_frequency !== undefined ? String(this._config.icon_frequency) : '1');
+        setValue(this._elements.get('icons_top_bar'), this._config.icons_top_bar !== undefined ? this._config.icons_top_bar : false, 'checked');
         setValue(this._elements.get('meteogram_hours'), this._config.meteogram_hours || '48h');
         setValue(this._elements.get('diagnostics'), this._config.diagnostics !== undefined ? this._config.diagnostics : false, 'checked');
         setValue(this._elements.get('entity_id'), this._config.entity_id || '');
@@ -143,6 +147,8 @@ export class MeteogramCardEditor extends LitElement implements MeteogramCardEdit
         const showWeatherIcons = this._config.show_weather_icons !== undefined ? this._config.show_weather_icons : true;
         const showWind = this._config.show_wind !== undefined ? this._config.show_wind : true;
         const denseWeatherIcons = this._config.dense_weather_icons !== undefined ? this._config.dense_weather_icons : true;
+        const iconFrequency = this._config.icon_frequency !== undefined ? Number(this._config.icon_frequency) : 1;
+        const iconsTopBar = this._config.icons_top_bar !== undefined ? this._config.icons_top_bar : false;
         const meteogramHours = this._config.meteogram_hours || "48h";
         const diagnostics = this._config.diagnostics !== undefined ? this._config.diagnostics : false;
         const focussed = this._config.focussed !== undefined ? this._config.focussed : false;
@@ -329,7 +335,28 @@ export class MeteogramCardEditor extends LitElement implements MeteogramCardEdit
             .checked="${denseWeatherIcons}"
           ></ha-switch>
         </div>
-      
+
+        <div class="toggle-row">
+          <div class="toggle-label">${trnslt(hass, "ui.editor.meteogram.attributes.icon_frequency", "Weather icon frequency")}</div>
+          <select id="icon-frequency-select">
+            <option value="1" ${iconFrequency === 1 ? "selected" : ""}>Hourly</option>
+            <option value="2" ${iconFrequency === 2 ? "selected" : ""}>2 hourly</option>
+            <option value="3" ${iconFrequency === 3 ? "selected" : ""}>3 hourly</option>
+            <option value="4" ${iconFrequency === 4 ? "selected" : ""}>4 hourly</option>
+            <option value="6" ${iconFrequency === 6 ? "selected" : ""}>6 hourly</option>
+            <option value="12" ${iconFrequency === 12 ? "selected" : ""}>12 hourly</option>
+            <option value="24" ${iconFrequency === 24 ? "selected" : ""}>24 hourly</option>
+          </select>
+        </div>
+
+        <div class="toggle-row">
+          <div class="toggle-label">${trnslt(hass, "ui.editor.meteogram.attributes.icons_top_bar", "Weather icons in top bar")}</div>
+          <ha-switch
+            id="icons-top-bar"
+            .checked="${iconsTopBar}"
+          ></ha-switch>
+        </div>
+
         <div class="toggle-row">
           <div class="toggle-label">${trnslt(hass, "ui.editor.meteogram.display_mode", "Display Mode")}</div>
           <select id="display-mode-select">
@@ -473,6 +500,25 @@ export class MeteogramCardEditor extends LitElement implements MeteogramCardEdit
                 this._elements.set('dense_weather_icons', denseWeatherIconsSwitch);
             }
 
+            const iconFrequencySelect = this.querySelector('#icon-frequency-select') as ConfigurableHTMLElement;
+            if (iconFrequencySelect) {
+                iconFrequencySelect.configValue = 'icon_frequency';
+                iconFrequencySelect.addEventListener('change', (ev) => {
+                    const value = parseInt((ev.target as HTMLSelectElement).value, 10);
+                    if (!isNaN(value) && value > 0) {
+                        this._updateConfig('icon_frequency', value);
+                    }
+                });
+                this._elements.set('icon_frequency', iconFrequencySelect);
+            }
+
+            const iconsTopBarSwitch = this.querySelector('#icons-top-bar') as ConfigurableHTMLElement;
+            if (iconsTopBarSwitch) {
+                iconsTopBarSwitch.configValue = 'icons_top_bar';
+                iconsTopBarSwitch.addEventListener('change', this._valueChanged.bind(this));
+                this._elements.set('icons_top_bar', iconsTopBarSwitch);
+            }
+
             const meteogramHoursSelect = this.querySelector('#meteogram-hours-select') as ConfigurableHTMLElement;
             const customHoursRow = this.querySelector('.custom-hours-row') as HTMLElement;
             const customHoursInput = this.querySelector('#custom-hours-input') as ConfigurableHTMLElement;
@@ -584,7 +630,7 @@ export class MeteogramCardEditor extends LitElement implements MeteogramCardEdit
     // List of boolean config fields
     const boolFields = [
   'show_cloud_cover', 'show_pressure', 'show_precipitation', 'show_weather_icons',
-      'show_wind', 'dense_weather_icons', 'diagnostics', 'focussed'
+      'show_wind', 'dense_weather_icons', 'icons_top_bar', 'diagnostics', 'focussed'
     ];
 
     // Handle different input types

@@ -65,6 +65,8 @@ export class MeteogramCard extends LitElement {
     this.showWeatherIcons = true;
     this.showWind = true;
     this.denseWeatherIcons = true;
+    this.iconFrequency = undefined;
+    this.iconsTopBar = false;
     this.meteogramHours = "48h";
   }
 
@@ -133,6 +135,8 @@ export class MeteogramCard extends LitElement {
   @property({ type: Boolean }) showWeatherIcons = true;
   @property({ type: Boolean }) showWind = true;
   @property({ type: Boolean }) denseWeatherIcons = true; // NEW: icon density config
+  @property({ type: Number }) iconFrequency?: number; // NEW: hours between weather icons (1,2,3,4,6,12,24)
+  @property({ type: Boolean }) iconsTopBar = false; // NEW: draw weather icons in a bar at the top of the graph
   @property({ type: String }) meteogramHours: string | number = "48h"; // Default is now 48h
   @property({ type: Object }) styles: MeteogramStyleConfig = {}; // NEW: styles override
   @property({ type: Boolean }) diagnostics: boolean = DIAGNOSTICS_DEFAULT; // Initialize here
@@ -447,6 +451,16 @@ export class MeteogramCard extends LitElement {
       config.dense_weather_icons !== undefined
         ? config.dense_weather_icons
         : true;
+    // NEW: icon_frequency (hours between icons) overrides dense_weather_icons when set
+    this.iconFrequency =
+      config.icon_frequency !== undefined &&
+      config.icon_frequency !== null &&
+      Number(config.icon_frequency) > 0
+        ? Number(config.icon_frequency)
+        : undefined;
+    // NEW: draw weather icons in a bar along the top of the graph
+    this.iconsTopBar =
+      config.icons_top_bar !== undefined ? !!config.icons_top_bar : false;
     this.meteogramHours = config.meteogram_hours || "48h";
     this.styles = config.styles || {};
     // Add diagnostics option
@@ -521,6 +535,8 @@ export class MeteogramCard extends LitElement {
       show_weather_icons: true,
       show_wind: true,
       dense_weather_icons: true,
+      icon_frequency: 1,
+      icons_top_bar: false,
       meteogram_hours: "48h",
       diagnostics: DIAGNOSTICS_DEFAULT, // Default to DIAGNOSTICS_DEFAULT
       debug: false, // Debug logging (undocumented)
@@ -538,6 +554,8 @@ export class MeteogramCard extends LitElement {
       show_weather_icons: true,
       show_wind: true,
       dense_weather_icons: true,
+      icon_frequency: 1,
+      icons_top_bar: false,
       meteogram_hours: "48h",
       diagnostics: DIAGNOSTICS_DEFAULT, // Default to DIAGNOSTICS_DEFAULT
       debug: false, // Debug logging (undocumented)
@@ -1063,6 +1081,8 @@ export class MeteogramCard extends LitElement {
       changedProps.has("showWeatherIcons") ||
       changedProps.has("showWind") ||
       changedProps.has("denseWeatherIcons") ||
+      changedProps.has("iconFrequency") ||
+      changedProps.has("iconsTopBar") ||
       changedProps.has("meteogramHours");
 
     if (needsRedraw) {

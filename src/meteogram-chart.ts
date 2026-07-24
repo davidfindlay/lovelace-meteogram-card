@@ -23,14 +23,28 @@ export class MeteogramChart {
         data: any,
         N: number
     ) {
-        // If denseWeatherIcons is true, show all icons (interval 1)
-        // Otherwise, space icons so they don't overlap (e.g., 44px per icon)
+        // Icon cadence:
+        //  - icon_frequency (hours) takes precedence: show an icon when the forecast
+        //    hour is a multiple of the frequency (clock-anchored, e.g. every 3h at 0,3,6...).
+        //  - otherwise fall back to legacy dense_weather_icons behaviour.
         const minIconSpacing = 44; // px, icon is 40px wide
         const chartWidth = this.card._chartWidth || 400;
         const maxIcons = Math.floor(chartWidth / minIconSpacing);
-        const iconInterval = this.card.denseWeatherIcons
+        const legacyInterval = this.card.denseWeatherIcons
             ? 1
             : Math.max(1, Math.ceil(N / maxIcons));
+        const freqRaw = this.card.iconFrequency;
+        const freq = (typeof freqRaw === "number" && freqRaw > 0) ? Math.round(freqRaw) : null;
+        const topBar = !!this.card.iconsTopBar;
+        const topBarY = 2; // near the top edge of the plot area
+        const showIcon = (i: number): boolean => {
+            if (freq) {
+                const t = data && data.time ? data.time[i] : null;
+                if (t instanceof Date) return (t.getHours() % freq) === 0;
+                return (i % Math.max(1, freq)) === 0;
+            }
+            return (i % legacyInterval) === 0;
+        };
 
         chart.selectAll(".weather-icon")
             .data(symbolCode)
@@ -39,15 +53,20 @@ export class MeteogramChart {
             .attr("class", "weather-icon")
             .attr("x", (_: string, i: number) => x(i) - 20)
             .attr("y", (_: string, i: number) => {
+                if (topBar) return topBarY;
                 const temp = temperatureConverted[i];
                 return temp !== null ? yTemp(temp) - 40 : -999;
             })
             .attr("width", 40)
             .attr("height", 40)
-            .attr("opacity", (_: string, i: number) =>
-                (temperatureConverted[i] !== null && i % iconInterval === 0) ? 1 : 0)
+            .attr("opacity", (_: string, i: number) => {
+                if (!showIcon(i)) return 0;
+                if (topBar) return 1;
+                return temperatureConverted[i] !== null ? 1 : 0;
+            })
             .each((d: string, i: number, nodes: any) => {
-                if (i % iconInterval !== 0) return;
+                if (!showIcon(i)) return;
+                if (!topBar && temperatureConverted[i] === null) return;
                 const node = nodes[i];
                 if (!d) return;
                 let iconName = d;
